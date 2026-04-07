@@ -2,13 +2,23 @@
 
 # Minecraft服务器管理脚本
 # 版本: 1.0
-# 放在桌面上，一键管理Minecraft 1.21.11服务器
+# 放在桌面上，一键管理Minecraft服务器
 
-SERVER_DIR="/Users/qiufu/minecraft-server-1.21.11"
-PROPERTIES_FILE="$SERVER_DIR/server.properties"
-LOGS_DIR="$SERVER_DIR/logs"
-START_SCRIPT="$SERVER_DIR/start.sh"
-STOP_SCRIPT="$SERVER_DIR/stop.sh"
+# 加载配置
+if [ -f "config.sh" ]; then
+    source config.sh
+else
+    echo "错误: 未找到配置文件 config.sh"
+    echo "请先运行 ./setup.sh 进行初始配置"
+    exit 1
+fi
+
+# 如果没有配置，使用默认值
+SERVER_DIR=${SERVER_DIR:-"/Users/qiufu/minecraft-server-1.21.11"}
+PROPERTIES_FILE=${PROPERTIES_FILE:-"$SERVER_DIR/server.properties"}
+LOGS_DIR=${LOGS_DIR:-"$SERVER_DIR/logs"}
+START_SCRIPT=${START_SCRIPT:-"$SERVER_DIR/start.sh"}
+STOP_SCRIPT=${STOP_SCRIPT:-"$SERVER_DIR/stop.sh"}
 
 # 颜色定义
 RED='\033[0;31m'

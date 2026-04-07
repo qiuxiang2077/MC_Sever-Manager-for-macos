@@ -18,6 +18,8 @@
 | 文件名 | 描述 |
 |--------|------|
 | `README.md` | 项目说明文档（您正在阅读的文件） |
+| `setup.sh` | 初始配置脚本，交互式设置服务器参数 |
+| `config.sh` | 配置文件，由setup.sh生成（运行后自动创建） |
 | `minecraft_manager.sh` | 功能完整的管理界面脚本，提供交互式菜单控制服务器 |
 | `minecraft_console.sh` | 服务器启动器脚本，用于启动Minecraft服务器 |
 | `start2.sh` | 备用启动脚本，包含白名单监控功能 |
@@ -34,8 +36,8 @@
 
 1. 克隆此仓库：
    ```bash
-   git clone https://github.com/qiuxiang2077/OpenClaw_MC_Manager.git
-   cd OpenClaw_MC_Manager
+   git clone https://github.com/qiuxiang2077/macOS-MC-Manager.git
+   cd macOS-MC-Manager
    ```
 
 2. 确保脚本有执行权限：
@@ -43,7 +45,13 @@
    chmod +x *.sh *.command
    ```
 
-3. 可选：安装mcrcon以获得更好的RCON体验：
+3. **首次运行配置**：
+   ```bash
+   ./setup.sh
+   ```
+   按照提示设置您的服务器路径、版本和其他参数。
+
+4. 可选：安装mcrcon以获得更好的RCON体验：
    ```bash
    brew install mcrcon
    ```
