@@ -1,14 +1,22 @@
 #!/bin/bash
 
 # Minecraft服务器管理脚本
-# 版本: 1.0
-# 放在桌面上，一键管理Minecraft服务器
+# 版本: 2.0 - 增强版
+# 包含错误处理、日志系统和改进的UI
+
+# 加载通用函数库
+if [ -f "common.sh" ]; then
+    source common.sh
+else
+    echo "错误: 未找到通用函数库 common.sh"
+    exit 1
+fi
 
 # 加载配置
 if [ -f "config.sh" ]; then
     source config.sh
 else
-    echo "错误: 未找到配置文件 config.sh"
+    log_error "未找到配置文件 config.sh"
     echo "请先运行 ./setup.sh 进行初始配置"
     exit 1
 fi
@@ -19,32 +27,6 @@ PROPERTIES_FILE=${PROPERTIES_FILE:-"$SERVER_DIR/server.properties"}
 LOGS_DIR=${LOGS_DIR:-"$SERVER_DIR/logs"}
 START_SCRIPT=${START_SCRIPT:-"$SERVER_DIR/start.sh"}
 STOP_SCRIPT=${STOP_SCRIPT:-"$SERVER_DIR/stop.sh"}
-
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
-NC='\033[0m' # No Color
-
-# 日志函数
-log_info() {
-    echo -e "${BLUE}[信息]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[成功]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[警告]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_error() {
-    echo -e "${RED}[错误]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
 
 # 检查服务器是否在运行
 check_server_running() {
@@ -712,6 +694,141 @@ EOF
     fi
 }
 
+# 备份管理
+backup_management() {
+    echo -e "${CYAN}════════════════════════════════════════${NC}"
+    echo -e "${MAGENTA}           备份管理${NC}"
+    echo -e "${CYAN}════════════════════════════════════════${NC}"
+
+    echo -e "${YELLOW}备份选项:${NC}"
+    echo "1. 📦 创建完整备份"
+    echo "2. ⚡ 创建快速备份 (仅世界文件)"
+    echo "3. 📋 列出所有备份"
+    echo "4. 🔄 恢复备份"
+    echo "5. ⏰ 设置自动备份"
+    echo "6. 返回主菜单"
+    echo -e "${CYAN}════════════════════════════════════════${NC}"
+    echo -n "请选择 [1-6]: "
+
+    read choice
+    case $choice in
+        1)
+            log_info "开始创建完整备份..."
+            if ./backup.sh full; then
+                log_success "完整备份创建成功"
+            else
+                log_error "完整备份创建失败"
+            fi
+            echo -e "${YELLOW}按Enter键继续...${NC}"
+            read
+            ;;
+        2)
+            log_info "开始创建快速备份..."
+            if ./backup.sh quick; then
+                log_success "快速备份创建成功"
+            else
+                log_error "快速备份创建失败"
+            fi
+            echo -e "${YELLOW}按Enter键继续...${NC}"
+            read
+            ;;
+        3)
+            echo -e "${CYAN}════════════════════════════════════════${NC}"
+            ./backup.sh list
+            echo -e "${CYAN}════════════════════════════════════════${NC}"
+            echo -e "${YELLOW}按Enter键继续...${NC}"
+            read
+            ;;
+        4)
+            echo -e "${CYAN}════════════════════════════════════════${NC}"
+            ./backup.sh restore
+            echo -e "${CYAN}════════════════════════════════════════${NC}"
+            echo -e "${YELLOW}按Enter键继续...${NC}"
+            read
+            ;;
+        5)
+            setup_auto_backup
+            ;;
+        6)
+            return 0
+            ;;
+        *)
+            log_error "无效选择"
+            echo -e "${YELLOW}按Enter键继续...${NC}"
+            read
+            ;;
+    esac
+}
+
+# 设置自动备份
+setup_auto_backup() {
+    echo -e "${CYAN}════════════════════════════════════════${NC}"
+    echo -e "${MAGENTA}        设置自动备份${NC}"
+    echo -e "${CYAN}════════════════════════════════════════${NC}"
+
+    echo -e "${YELLOW}自动备份将使用cron任务定期执行${NC}"
+    echo "建议设置在服务器低峰期运行"
+    echo ""
+
+    echo "选择备份频率:"
+    echo "1. 每小时"
+    echo "2. 每天早上2点"
+    echo "3. 每周日早上2点"
+    echo "4. 自定义cron表达式"
+    echo "5. 取消"
+    echo -n "请选择 [1-5]: "
+
+    read choice
+    local cron_time
+
+    case $choice in
+        1) cron_time="0 * * * *" ;;  # 每小时
+        2) cron_time="0 2 * * *" ;;  # 每天2点
+        3) cron_time="0 2 * * 0" ;;  # 每周日2点
+        4)
+            echo -n "请输入cron表达式 (例如: '0 2 * * *' 表示每天2点): "
+            read cron_time
+            ;;
+        5)
+            log_info "自动备份设置取消"
+            return 0
+            ;;
+        *)
+            log_error "无效选择"
+            return 1
+            ;;
+    esac
+
+    # 创建cron任务
+    local script_path="$(pwd)/backup.sh"
+    local cron_job="$cron_time $script_path auto"
+
+    echo "将添加以下cron任务:"
+    echo "$cron_job"
+    echo ""
+
+    if confirm "确认添加自动备份任务?"; then
+        # 备份现有crontab
+        crontab -l > /tmp/crontab_backup 2>/dev/null || true
+
+        # 添加新任务
+        (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
+
+        if [ $? -eq 0 ]; then
+            log_success "自动备份任务已设置"
+            log_info "任务将在指定时间自动执行"
+        else
+            log_error "设置自动备份任务失败"
+            log_info "请手动检查cron配置"
+        fi
+    else
+        log_info "自动备份设置取消"
+    fi
+
+    echo -e "${YELLOW}按Enter键继续...${NC}"
+    read
+}
+
 # 主菜单
 main_menu() {
     while true; do
@@ -725,9 +842,10 @@ main_menu() {
         echo "2. 🎮 发送RCON命令"
         echo "3. ⚙️  服务器控制 (启动/停止)"
         echo "4. 📋 白名单管理"
-        echo "5. 🐚 打开服务器目录"
-        echo "6. 🔧 安装mcrcon (RCON客户端)"
-        echo "7. ❌ 退出"
+        echo "5. � 备份管理"
+        echo "6. 🐚 打开服务器目录"
+        echo "7. 🔧 安装mcrcon (RCON客户端)"
+        echo "8. ❌ 退出"
         echo -e "${YELLOW}════════════════════════════════════════${NC}"
         echo -n "请选择 [1-7]: "
 
@@ -737,13 +855,14 @@ main_menu() {
             2) send_rcon_command ;;
             3) server_control ;;
             4) whitelist_management ;;
-            5)
+            5) backup_management ;;
+            6)
                 log_info "打开服务器目录: $SERVER_DIR"
                 open "$SERVER_DIR"
                 echo -e "${YELLOW}按Enter键继续...${NC}"
                 read
                 ;;
-            6)
+            7)
                 echo -e "${CYAN}════════════════════════════════════════${NC}"
                 echo -e "${MAGENTA}        安装mcrcon RCON客户端${NC}"
                 echo -e "${CYAN}════════════════════════════════════════${NC}"
@@ -764,7 +883,7 @@ main_menu() {
                 echo -e "${YELLOW}按Enter键继续...${NC}"
                 read
                 ;;
-            7)
+            8)
                 log_info "退出Minecraft服务器管理界面"
                 echo -e "${GREEN}感谢使用！${NC}"
                 exit 0
